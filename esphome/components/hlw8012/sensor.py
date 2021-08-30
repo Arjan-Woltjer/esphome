@@ -3,21 +3,18 @@ import esphome.config_validation as cv
 from esphome import pins
 from esphome.components import sensor
 from esphome.const import (
+    CONF_ID,
     CONF_CHANGE_MODE_EVERY,
     CONF_INITIAL_MODE,
+    CONF_SEL_PIN,
+    CONF_VOLTAGE,
     CONF_CURRENT,
-    CONF_CURRENT_RESISTOR,
-    CONF_ID,
     CONF_POWER,
     CONF_ENERGY,
-    CONF_SEL_PIN,
-    CONF_MODEL,
-    CONF_VOLTAGE,
-    CONF_VOLTAGE_DIVIDER,
+    DEVICE_CLASS_VOLTAGE,
     DEVICE_CLASS_CURRENT,
     DEVICE_CLASS_ENERGY,
     DEVICE_CLASS_POWER,
-    DEVICE_CLASS_VOLTAGE,
     LAST_RESET_TYPE_AUTO,
     STATE_CLASS_MEASUREMENT,
     UNIT_VOLT,
@@ -31,21 +28,18 @@ AUTO_LOAD = ["pulse_counter"]
 hlw8012_ns = cg.esphome_ns.namespace("hlw8012")
 HLW8012Component = hlw8012_ns.class_("HLW8012Component", cg.PollingComponent)
 HLW8012InitialMode = hlw8012_ns.enum("HLW8012InitialMode")
-HLW8012SensorModels = hlw8012_ns.enum("HLW8012SensorModels")
 
+CONF_CF1_PIN = "cf1_pin"
+CONF_CF_PIN = "cf_pin"
+CONF_VOLTAGE_CONSTANT = "voltage_constant"
+CONF_CURRENT_CONSTANT = "current_constant"
+CONF_POWER_CONSTANT = "power_constant"
+     
 INITIAL_MODES = {
     CONF_CURRENT: HLW8012InitialMode.HLW8012_INITIAL_MODE_CURRENT,
     CONF_VOLTAGE: HLW8012InitialMode.HLW8012_INITIAL_MODE_VOLTAGE,
 }
 
-MODELS = {
-    "HLW8012": HLW8012SensorModels.HLW8012_SENSOR_MODEL_HLW8012,
-    "CSE7759": HLW8012SensorModels.HLW8012_SENSOR_MODEL_CSE7759,
-    "BL0937": HLW8012SensorModels.HLW8012_SENSOR_MODEL_BL0937,
-}
-
-CONF_CF1_PIN = "cf1_pin"
-CONF_CF_PIN = "cf_pin"
 CONFIG_SCHEMA = cv.Schema(
     {
         cv.GenerateID(): cv.declare_id(HLW8012Component),
@@ -81,12 +75,10 @@ CONFIG_SCHEMA = cv.Schema(
             state_class=STATE_CLASS_MEASUREMENT,
             last_reset_type=LAST_RESET_TYPE_AUTO,
         ),
-        cv.Optional(CONF_CURRENT_RESISTOR, default=0.001): cv.resistance,
-        cv.Optional(CONF_VOLTAGE_DIVIDER, default=2351): cv.positive_float,
-        cv.Optional(CONF_MODEL, default="HLW8012"): cv.enum(MODELS, upper=True),
-        cv.Optional(CONF_CHANGE_MODE_EVERY, default=8): cv.All(
-            cv.uint32_t, cv.Range(min=1)
-        ),
+        cv.Optional(CONF_VOLTAGE_CONSTANT, default=1200): cv.positive_not_null_int,
+        cv.Optional(CONF_CURRENT_CONSTANT, default=1000): cv.positive_not_null_int,
+        cv.Optional(CONF_POWER_CONSTANT, default=1000): cv.positive_not_null_int,
+        cv.Optional(CONF_CHANGE_MODE_EVERY, default=8): cv.positive_not_null_int,
         cv.Optional(CONF_INITIAL_MODE, default=CONF_VOLTAGE): cv.one_of(
             *INITIAL_MODES, lower=True
         ),
@@ -117,8 +109,8 @@ async def to_code(config):
     if CONF_ENERGY in config:
         sens = await sensor.new_sensor(config[CONF_ENERGY])
         cg.add(var.set_energy_sensor(sens))
-    cg.add(var.set_current_resistor(config[CONF_CURRENT_RESISTOR]))
-    cg.add(var.set_voltage_divider(config[CONF_VOLTAGE_DIVIDER]))
+    cg.add(var.set_voltage_constant(config[CONF_VOLTAGE_CONSTANT]))
+    cg.add(var.set_current_constant(config[CONF_CURRENT_CONSTANT]))
+    cg.add(var.set_power_constant(config[CONF_POWER_CONSTANT]))
     cg.add(var.set_change_mode_every(config[CONF_CHANGE_MODE_EVERY]))
     cg.add(var.set_initial_mode(INITIAL_MODES[config[CONF_INITIAL_MODE]]))
-    cg.add(var.set_sensor_model(config[CONF_MODEL]))

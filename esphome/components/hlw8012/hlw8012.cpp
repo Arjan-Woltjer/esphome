@@ -6,11 +6,7 @@ namespace hlw8012 {
 
 static const char *const TAG = "hlw8012";
 
-// valid for HLW8012 and CSE7759
-static const uint32_t HLW8012_CLOCK_FREQUENCY = 3579000;
-
 void HLW8012Component::setup() {
-  float reference_voltage = 0;
   ESP_LOGCONFIG(TAG, "Setting up HLW8012...");
   this->sel_pin_->setup();
   this->sel_pin_->digital_write(this->current_mode_);
@@ -18,34 +14,25 @@ void HLW8012Component::setup() {
   this->cf1_store_.pulse_counter_setup(this->cf1_pin_);
 
   // Initialize multipliers
-  if (this->sensor_model_ == HLW8012_SENSOR_MODEL_BL0937) {
-    reference_voltage = 1.218f;
-    this->power_multiplier_ =
-        reference_voltage * reference_voltage * this->voltage_divider_ / this->current_resistor_ / 1721506.0f;
-    this->current_multiplier_ = reference_voltage / this->current_resistor_ / 94638.0f;
-    this->voltage_multiplier_ = reference_voltage * this->voltage_divider_ / 15397.0f;
-  } else {
-    // HLW8012 and CSE7759 have same reference specs
-    reference_voltage = 2.43f;
-    this->power_multiplier_ = reference_voltage * reference_voltage * this->voltage_divider_ / this->current_resistor_ *
-                              64.0f / 24.0f / HLW8012_CLOCK_FREQUENCY;
-    this->current_multiplier_ = reference_voltage / this->current_resistor_ * 512.0f / 24.0f / HLW8012_CLOCK_FREQUENCY;
-    this->voltage_multiplier_ = reference_voltage * this->voltage_divider_ * 256.0f / HLW8012_CLOCK_FREQUENCY;
-  }
+  this->voltage_multiplier_ = float(this->voltage_constant_) / 10000;
+  this->current_multiplier_ = float(this->current_constant_) / 100000;
+  this->power_multiplier_   = float(this->power_constant_)   / 1000;
 }
+
 void HLW8012Component::dump_config() {
   ESP_LOGCONFIG(TAG, "HLW8012:");
   LOG_PIN("  SEL Pin: ", this->sel_pin_)
-  LOG_PIN("  CF Pin: ", this->cf_pin_)
+  LOG_PIN("  CF  Pin: ", this->cf_pin_)
   LOG_PIN("  CF1 Pin: ", this->cf1_pin_)
   ESP_LOGCONFIG(TAG, "  Change measurement mode every %u", this->change_mode_every_);
-  ESP_LOGCONFIG(TAG, "  Current resistor: %.1f mΩ", this->current_resistor_ * 1000.0f);
-  ESP_LOGCONFIG(TAG, "  Voltage Divider: %.1f", this->voltage_divider_);
+  ESP_LOGCONFIG(TAG, "  Voltage constant: %u V /10000  Hz", this->voltage_constant_);
+  ESP_LOGCONFIG(TAG, "  Current constant: %u mA/100000 Hz", this->current_constant_);
+  ESP_LOGCONFIG(TAG, "  Power   constant: %u W /1000   Hz", this->power_constant_);
   LOG_UPDATE_INTERVAL(this)
   LOG_SENSOR("  ", "Voltage", this->voltage_sensor_)
   LOG_SENSOR("  ", "Current", this->current_sensor_)
-  LOG_SENSOR("  ", "Power", this->power_sensor_)
-  LOG_SENSOR("  ", "Energy", this->energy_sensor_)
+  LOG_SENSOR("  ", "Power",   this->power_sensor_)
+  LOG_SENSOR("  ", "Energy",  this->energy_sensor_)
 }
 float HLW8012Component::get_setup_priority() const { return setup_priority::DATA; }
 void HLW8012Component::update() {
